@@ -8,4 +8,4 @@
 （<b>本の検索</b> → 本の特定 → サイト1で価格確認 → サイト2で… → … → 購入サイトの決定 → <b>購入画面へアクセス</b> → …）
 
 # Capture
-![used_book_price_comparer](https://user-images.githubusercontent.com/39453720/46592429-97f8c600-cafd-11e8-9482-d632073602b3.png)
+![used_book_price_comparer](https://user-images.githubusercontent.com/39453720/46608590-4c1b4080-cb40-11e8-97cd-67714db7d2b4.png)
