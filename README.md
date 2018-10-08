@@ -9,7 +9,3 @@
 
 # Capture
 ![used_book_price_comparer](https://user-images.githubusercontent.com/39453720/46592429-97f8c600-cafd-11e8-9482-d632073602b3.png)
-
-# Requirement
-
-# Usage
