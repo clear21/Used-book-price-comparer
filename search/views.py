@@ -197,7 +197,11 @@ def search_result_amazon(isbn13):
     
     url = url_mae + isbn13_10(isbn13) + url_ato
     
+    print(url)
+    
     res_info = requests.get(url)
+    
+    print('status_code' , str(res_info.status_code)[0])
     
     #正常に情報取得できた場合
     if str(res_info.status_code)[0] == '2':
@@ -208,16 +212,17 @@ def search_result_amazon(isbn13):
         #新品価格
         taisho_tag_info_new = taisho_html_bs.find('span' , class_ = 'olp-new olp-link')
         
-        #中古があれば中古情報を取得
+        #中古が存在する場合
         if taisho_tag_info_old != None:
             taisho_tag_info_tmp = taisho_tag_info_old
+        #中古が無いが、新品が存在する場合
         elif taisho_tag_info_new != None:
             taisho_tag_info_tmp = taisho_tag_info_new
+        #中古新品が共に無し、又は、対象商品ページが存在しない場合
         else:
-            return {site_name : OrderedDict((('success' , '成功')
-                                    , ('price' , float('inf'))
-                                    , ('url' , url)))}
-            #return {'success':False , 'url':url}
+            return {site_name : OrderedDict((('success' , '失敗')
+                                        , ('price' , float('inf'))
+                                        , ('url' , url)))}
             
         taisho_tag_info = taisho_tag_info_tmp.find_all('a')[0]
 
@@ -234,22 +239,71 @@ def search_result_amazon(isbn13):
         #￥とカンマを削除し、数値化
         price = int(price_tmp_3.replace('￥' , '').replace(',' , ''))
         
-        #テスト
-        print('**' * 10)
-        print('amazon' , 'OK')
-        print('**' * 10)
-        
         return {site_name : OrderedDict((('success' , '成功')
                                     , ('price' , price)
                                     , ('url' , url)))}
         #return {'success':True , 'url':url ,'price':price}
         
-    else:
+    else: 
+        #phantomJSを使って検索
+        return search_result_amazon_with_js(isbn13)
         
+#※関数「search_result_amazon」内で使用
+#amazon_PhantomJS使用
+#引数、戻り値：関数「search_result_amazon」と同様
+def search_result_amazon_with_js(isbn13):
+    #サイト名
+    site_name = 'amazon'
+    
+    url_mae = 'https://www.amazon.co.jp/dp/'
+    url_ato = ''
+    
+    url = url_mae + isbn13_10(isbn13) + url_ato
+    
+    #phantomJS起動
+    browser = webdriver.PhantomJS(executable_path=r'C:\Users\Takayoshi_Hoshino\phantomjs\bin\phantomjs.exe')
+    
+    #アクセス
+    browser.get(url)
+    
+    #取得したソースをBeautifulSoupに設定
+    taisho_html_bs = BeautifulSoup(browser.page_source , 'html.parser')
+
+    #中古価格
+    taisho_tag_info_old = taisho_html_bs.find('span' , class_ = 'olp-used olp-link')
+    #新品価格
+    taisho_tag_info_new = taisho_html_bs.find('span' , class_ = 'olp-new olp-link')
+
+    #中古が存在する場合
+    if taisho_tag_info_old != None:
+        taisho_tag_info_tmp = taisho_tag_info_old
+    #中古が無いが、新品が存在する場合
+    elif taisho_tag_info_new != None:
+        taisho_tag_info_tmp = taisho_tag_info_new
+    #中古新品が共に無し、又は、対象商品ページが存在しない場合
+    else:
         return {site_name : OrderedDict((('success' , '失敗')
                                     , ('price' , float('inf'))
                                     , ('url' , url)))}
-        #return {'success':False , 'url':url}
+
+    taisho_tag_info = taisho_tag_info_tmp.find_all('a')[0]
+
+    #テキスト部分抽出(要加工)
+    price_tmp_1 = taisho_tag_info.text
+
+    #改行、空白削除（処理後（例）：￥1,268より7中古品の出品）
+    price_tmp_2 = price_tmp_1.replace('\n' , '').replace(' ' , '')
+
+    #「より」を境に分割し、価格のある方を取得（処理後（例）：￥1,268）
+    pattern = '(.*)より(.*)'
+    price_tmp_3 = re.search(pattern , price_tmp_2).group(1)
+
+    #￥とカンマを削除し、数値化
+    price = int(price_tmp_3.replace('￥' , '').replace(',' , ''))
+
+    return {site_name : OrderedDict((('success' , '成功')
+                                , ('price' , price)
+                                , ('url' , url)))}
 
 #楽天古本市場 検索結果（引数：isbn13　戻り値：{真偽(正常取得できたか？) , 価格}）
 def search_result_rakutenhuruhon(isbn13):
@@ -315,11 +369,6 @@ def search_result_rakutenhuruhon(isbn13):
                 #return {'success':False , 'url':url}
                 
                 
-            #テスト
-            print('**' * 10)
-            print('楽天' , 'OK')
-            print('**' * 10)
-            
             return {site_name : OrderedDict((('success' , '成功')
                                     , ('price' , price)
                                     , ('url' , url)))}
@@ -356,10 +405,6 @@ def search_result_surugaya(isbn13):
         
         if taisho_old_price_tag != None:
             price = int(taisho_old_price_tag.text.replace('税込' , '').replace('￥' , '').replace(',' , '').replace(' ' , ''))
-            
-            print('**' * 10)
-            print('駿河屋' , 'OK')
-            print('**' * 10)
             
             return {site_name : OrderedDict((('success' , '成功')
                                     , ('price' , price)
@@ -423,10 +468,6 @@ def search_result_netoff(isbn13):
             #商品の詳細画面
             url = results_bs.find('a' , class_='fw').get('href')
             
-            print('**' * 10)
-            print('ネットオフ' , 'OK')
-            print('**' * 10)
-            
             return {site_name : OrderedDict((('success' , '成功')
                                         , ('price' , price)
                                         , ('url' , url)))}
@@ -441,26 +482,94 @@ def search_result_netoff(isbn13):
                                     , ('url' , url)))}
 
 #ブックオフオンライン（selenium使用）
+# def search_result_bookoff(isbn13):
+#     #サイト名
+#     site_name = 'ブックオフ'
+    
+#     #トップ画面
+#     url_top = 'http://www.bookoffonline.co.jp/'
+    
+#     #webdriverに設定用のオプション
+#     options = Options()
+    
+#     #ヘッドレス設定（ブラウザを表示しない）
+#     options.add_argument('--headless')
+
+#     #phantomJS起動
+#     #browser = webdriver.PhantomJS(executable_path=r'C:\Users\Takayoshi_Hoshino\phantomjs\bin\phantomjs.exe')
+
+#     #Chrome起動（ヘッドレス）
+#     browser = webdriver.Chrome(executable_path=r'' 
+#                                    , chrome_options=options)
+    
+#     #ネットオフのトップへアクセス
+#     browser.get(url_top)
+
+#     #メモ：カテゴリリストは使わない（漫画と書籍が別々なっているため）
+
+#     #isbnをキーワードとして入力
+#     browser.find_element_by_id("tField").send_keys(isbn13)
+
+#     #検索ボタンをクリック
+#     browser.find_element_by_class_name("button").click()
+
+#     #検索結果のURLを取得（対象商品が無い場合の戻り値「url」の値にする）※但し、アクセスしても検索文字列は残ってない
+#     url_search_result = browser.current_url
+
+#     #検索結果画面をbs化
+#     bs_search_result = BeautifulSoup(browser.page_source , 'html.parser')
+
+#     #phantomJS（のみ）を閉じる　※全てのウィンドウを閉じる場合は quit()
+#     browser.close()
+
+#     #検索トップの商品のaタグ情報取得（詳細URL取得のため）
+#     taisho_p_tag_included_a_tag = bs_search_result.find("p" , class_ = "itemttl")
+
+#     #検索対象商品がある場合（在庫有無は以降で判別）
+#     if taisho_p_tag_included_a_tag != None:
+        
+#         taisho_a_tag = taisho_p_tag_included_a_tag.find("a")
+
+#         #詳細画面URl
+#         url = 'http://www.bookoffonline.co.jp/' + taisho_a_tag.get('href')
+
+#         #在庫有無の判定
+#         div_tag_about_stock = bs_search_result.find("div" , class_="nostockbtn")
+
+#         #在庫が無い場合
+#         if div_tag_about_stock != None and div_tag_about_stock.text == '在庫がありません':
+            
+#             #在庫は無いが、詳細画面があるので、urlは変数「url」を指定
+#             return {site_name : OrderedDict((('success' , '失敗')
+#                                         , ('price' , float('inf'))
+#                                         , ('url' , url)))}
+        
+#         #在庫が有る場合
+#         else:
+#             #価格取得
+#             price_text = bs_search_result.find("td" , class_="mainprice").text
+#             price = int(re.search("(.*)（税込）(.*)" , price_text).group(1).replace('￥' , '').replace(',' , '').strip())
+
+#             return {site_name : OrderedDict((('success' , '成功')
+#                                             , ('price' , price)
+#                                             , ('url' , url)))}
+#     #検索対象商品が無い場合
+#     else:
+#         return {site_name : OrderedDict((('success' , '失敗')
+#                                         , ('price' , float('inf'))
+#                                         , ('url' , url_search_result)))}
+    
+#ブックオフオンライン（phantomJS使用）
 def search_result_bookoff(isbn13):
     #サイト名
     site_name = 'ブックオフ'
     
     #トップ画面
     url_top = 'http://www.bookoffonline.co.jp/'
-    
-    #webdriverに設定用のオプション
-    options = Options()
-    
-    #ヘッドレス設定（ブラウザを表示しない）
-    options.add_argument('--headless')
 
     #phantomJS起動
-    #browser = webdriver.PhantomJS(executable_path=r'C:\Users\Takayoshi_Hoshino\phantomjs\bin\phantomjs.exe')
+    browser = webdriver.PhantomJS(executable_path=r'C:\Users\Takayoshi_Hoshino\phantomjs\bin\phantomjs.exe')
 
-    #Chrome起動（ヘッドレス）
-    browser = webdriver.Chrome(executable_path=r'C:\Users\Takayoshi_Hoshino\Desktop\インストール用ファイル\chromedriver_selenium\chromedriver_win32\chromedriver.exe' 
-                                   , chrome_options=options)
-    
     #ネットオフのトップへアクセス
     browser.get(url_top)
 
@@ -505,11 +614,6 @@ def search_result_bookoff(isbn13):
         
         #在庫が有る場合
         else:
-        
-            print('**' * 10)
-            print('ブックオフ' , 'OK')
-            print('**' * 10)
-            
             #価格取得
             price_text = bs_search_result.find("td" , class_="mainprice").text
             price = int(re.search("(.*)（税込）(.*)" , price_text).group(1).replace('￥' , '').replace(',' , '').strip())
